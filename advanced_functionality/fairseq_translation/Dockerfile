@@ -42,7 +42,7 @@ RUN curl -o ~/miniconda.sh -O  https://repo.continuum.io/miniconda/Miniconda3-la
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN pip install sagemaker flask gevent gunicorn
+RUN pip install sagemaker flask gevent gunicorn --ignore-installed PyYAML
 
 RUN git clone https://github.com/pytorch/fairseq.git && \
     cd fairseq && \
@@ -54,6 +54,19 @@ RUN git clone https://github.com/pytorch/fairseq.git && \
 COPY lib/changehostname.c /
 COPY lib/start_with_right_hostname.sh /usr/local/bin/start_with_right_hostname.sh
 RUN chmod +x /usr/local/bin/start_with_right_hostname.sh
+
+
+# Install OpenSSH for MPI to communicate between containers
+RUN echo exit 0 > /usr/sbin/policy-rc.d
+RUN apt update
+RUN apt-get install -y --no-install-recommends openssh-client openssh-server
+RUN mkdir -p /var/run/sshd && \
+  sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+RUN mkdir -p /root/.ssh/ && \
+  ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa && \
+  cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys && \
+  printf "Host *\n  StrictHostKeyChecking no\n" >> /root/.ssh/config
 
 
 ENV PYTHONUNBUFFERED=TRUE
